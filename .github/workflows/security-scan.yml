@@ -34,32 +34,11 @@ jobs:
           upload: "sarif"
         continue-on-error: true
 
-      # ============================
-      # 2️⃣ Gitleaks - Secret Detection
-      # ============================
-      - name: Install Gitleaks
-        run: |
-          curl -sSL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64 -o /usr/local/bin/gitleaks
-          chmod +x /usr/local/bin/gitleaks
-
-      - name: Install gitleaks-sarif converter
-        run: |
-          curl -sSL https://github.com/gitleaks/gitleaks-sarif/releases/latest/download/gitleaks-sarif-linux-amd64 -o /usr/local/bin/gitleaks-sarif
-          chmod +x /usr/local/bin/gitleaks-sarif
-
-      - name: Run Gitleaks and convert to SARIF
-        run: |
-          # Run Gitleaks and output JSON
-          gitleaks detect --source . --no-git --report-format json --report-path gitleaks.json || true
-          # Convert JSON report to SARIF for GitHub
-          gitleaks-sarif convert --input gitleaks.json --output gitleaks.sarif || true
-
-      - name: Upload Gitleaks SARIF to GitHub Security tab
-        if: success() || failure()
-        uses: github/codeql-action/upload-sarif@v3
+      # Step 2️⃣: Secret scanning with Gitleaks
+      - name: Scan for secrets with Gitleaks
+        uses: gitleaks/gitleaks-action@v2
         with:
-          sarif_file: gitleaks.sarif
-
+          args: detect --source . --no-git -v
 
       # ============================
       # 3️⃣ Trivy - Container & Dependency Scanning

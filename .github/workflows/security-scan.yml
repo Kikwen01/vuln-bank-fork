@@ -42,12 +42,20 @@ jobs:
           curl -sSL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64 -o /usr/local/bin/gitleaks
           chmod +x /usr/local/bin/gitleaks
 
-      - name: Run Gitleaks (Secret Scan)
+      - name: Install gitleaks-sarif converter
         run: |
-          gitleaks detect --source . --no-git --report-format sarif --report-path gitleaks.sarif || true
+          curl -sSL https://github.com/gitleaks/gitleaks-sarif/releases/latest/download/gitleaks-sarif-linux-amd64 -o /usr/local/bin/gitleaks-sarif
+          chmod +x /usr/local/bin/gitleaks-sarif
 
-      - name: Upload Gitleaks results to GitHub Security tab
-        if: success() || failure() # always try to upload if file exists
+      - name: Run Gitleaks and convert to SARIF
+        run: |
+          # Run Gitleaks and output JSON
+          gitleaks detect --source . --no-git --report-format json --report-path gitleaks.json || true
+          # Convert JSON report to SARIF for GitHub
+          gitleaks-sarif convert --input gitleaks.json --output gitleaks.sarif || true
+
+      - name: Upload Gitleaks SARIF to GitHub Security tab
+        if: success() || failure()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gitleaks.sarif

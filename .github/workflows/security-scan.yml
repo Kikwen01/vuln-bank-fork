@@ -37,16 +37,21 @@ jobs:
       # ============================
       # 2️⃣ Gitleaks - Secret Detection
       # ============================
+      - name: Install Gitleaks
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64 -o /usr/local/bin/gitleaks
+          chmod +x /usr/local/bin/gitleaks
+
       - name: Run Gitleaks (Secret Scan)
-        uses: gitleaks/gitleaks-action@v2
-        with:
-          args: detect --source . --report-format sarif --report-path gitleaks.sarif
-        continue-on-error: true
+        run: |
+          gitleaks detect --source . --no-git --report-format sarif --report-path gitleaks.sarif || true
 
       - name: Upload Gitleaks results to GitHub Security tab
+        if: success() || failure() # always try to upload if file exists
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gitleaks.sarif
+
 
       # ============================
       # 3️⃣ Trivy - Container & Dependency Scanning

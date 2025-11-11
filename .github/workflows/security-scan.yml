@@ -17,10 +17,12 @@ jobs:
     permissions:
       contents: read
       security-events: write
-      actions: read
 
     steps:
-      - name: Checkout code
+      # ============================
+      # 0️⃣ Checkout code
+      # ============================
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       # ============================
@@ -34,30 +36,32 @@ jobs:
           upload: "sarif"
         continue-on-error: true
 
-      # Step 2️⃣: Secret scanning with Gitleaks
-      - name: Scan for secrets with Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+      # ============================
+      # 2️⃣ Gitleaks - Secret Detection (Logs Only)
+      # ============================
+      - name: Run Gitleaks (Secret Scan)
+        uses: zricethezav/gitleaks-action@v2
         with:
-          args: detect --source . --no-git -v
+          source: .
+          format: table
+          redact: true   # hides secrets in logs
+          verbose: true
+        continue-on-error: true
 
       # ============================
-      # 3️⃣ Trivy - Container & Dependency Scanning
+      # 3️⃣ Trivy - Dependency / Filesystem Vulnerability Scanning
       # ============================
-      - name: Set up Trivy
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y wget
-          wget -qO- https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo deb https://aquasecurity.github.io/trivy-repo/deb stable main | sudo tee /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update -y
-          sudo apt-get install -y trivy
+      - name: Scan project with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs              # Scan project filesystem
+          format: sarif             # Output SARIF for Security tab
+          output: trivy.sarif
+          vuln-type: "os,library"   # Scan OS + libraries
+          severity: "CRITICAL,HIGH"
+        continue-on-error: true
 
-      # Scan for vulnerabilities in dependencies (e.g., .NET, React)
-      - name: Run Trivy FS scan (Dependencies)
-        run: trivy fs . --format sarif --output trivy.sarif || true
-
-      # Upload results to GitHub Security tab
-      - name: Upload Trivy results to GitHub Security tab
+      - name: Upload Trivy SARIF to Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy.sarif

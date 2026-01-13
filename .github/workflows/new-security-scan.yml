@@ -1,21 +1,12 @@
-name: Security Scan (Parallel - No GHAS)
-
-on:
-  push:
-    branches: [ "staging", "main" ]
-  pull_request:
-
 jobs:
   semgrep:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          pip install semgrep
-          semgrep ci --config=auto --json --output=semgrep-results.json || true
+      - run: pip install semgrep && semgrep ci --config=auto --json --output=semgrep-results.json || true
       - uses: actions/upload-artifact@v4
         with:
-          name: security-reports
+          name: semgrep-report 
           path: semgrep-results.json
 
   gitleaks:
@@ -25,16 +16,13 @@ jobs:
         with:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@v2
-        continue-on-error: true # Prevents workflow failure while still reporting
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_CONFIG: .gitleaks.toml # Optional
-      # Gitleaks action produces a report automatically; we just move it
-      - name: Rename report
+      - name: Rename for clarity
         run: mv results.json gitleaks-results.json || true
       - uses: actions/upload-artifact@v4
         with:
-          name: security-reports
+          name: gitleaks-report
           path: gitleaks-results.json
 
   trivy:
@@ -48,5 +36,22 @@ jobs:
           output: 'trivy-results.json'
       - uses: actions/upload-artifact@v4
         with:
-          name: security-reports
+          name: trivy-report
           path: trivy-results.json
+
+  # NEW JOB: Combine everything into one zip file
+  merge-reports:
+    runs-on: ubuntu-latest
+    needs: [semgrep, gitleaks, trivy] # Wait for all three to finish
+    steps:
+      - name: Download all reports
+        uses: actions/download-artifact@v4
+        with:
+          path: all-reports # Downloads every artifact into this folder
+          merge-multiple: true # This puts them all in the same root folder
+      
+      - name: Upload consolidated report
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-security-bundle
+          path: all-reports/

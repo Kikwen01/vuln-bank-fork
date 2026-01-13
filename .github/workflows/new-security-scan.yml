@@ -1,0 +1,52 @@
+name: Security Scan (Parallel - No GHAS)
+
+on:
+  push:
+    branches: [ "staging", "preprod", "master" ]
+  pull_request:
+
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          pip install semgrep
+          semgrep ci --config=auto --json --output=semgrep-results.json || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: semgrep-results.json
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        continue-on-error: true # Prevents workflow failure while still reporting
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml # Optional
+      # Gitleaks action produces a report automatically; we just move it
+      - name: Rename report
+        run: mv results.json gitleaks-results.json || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: gitleaks-results.json
+
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          format: 'json'
+          output: 'trivy-results.json'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: trivy-results.json

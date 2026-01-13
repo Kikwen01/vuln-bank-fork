@@ -1,3 +1,9 @@
+name: Security Scan NEW
+
+on:
+  push: 
+    branches: [ "main", "staging"]
+  pull_request:
 jobs:
   semgrep:
     runs-on: ubuntu-latest
@@ -6,7 +12,7 @@ jobs:
       - run: pip install semgrep && semgrep ci --config=auto --json --output=semgrep-results.json || true
       - uses: actions/upload-artifact@v4
         with:
-          name: semgrep-report 
+          name: semgrep-report  # Unique Name
           path: semgrep-results.json
 
   gitleaks:
@@ -22,7 +28,7 @@ jobs:
         run: mv results.json gitleaks-results.json || true
       - uses: actions/upload-artifact@v4
         with:
-          name: gitleaks-report
+          name: gitleaks-report # Unique Name
           path: gitleaks-results.json
 
   trivy:
@@ -36,7 +42,7 @@ jobs:
           output: 'trivy-results.json'
       - uses: actions/upload-artifact@v4
         with:
-          name: trivy-report
+          name: trivy-report    # Unique Name
           path: trivy-results.json
 
   # NEW JOB: Combine everything into one zip file
